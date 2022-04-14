@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: probes-api
+  labels:
+    app: probes-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: probes-api
+  template:
+    metadata:
+      labels:
+        app: probes-api
+    spec:
+      containers:
+      - name: probes-api
+        imagePullPolicy: Always
+        image: marmagni/probes.api:1.0.0
+        ports:
+        - containerPort: 80
+        env:
+        - name: DEADLOCK_AFTER_SECONDS
+          value: '-1'
+        - name: STARTUP_LATENCY_SECONDS
+          value: '20'
+        startupProbe:
+          httpGet:
+            path: /warmup
+            port: 80
+          failureThreshold: 20 #padrão: 3 -  quantidade de tentativas
+          timeoutSeconds: 3    #padrão: 1 -  tempo máximo que irá aguardar resposta
+          periodSeconds: 10    #padrão: 10 - intervalo em segundos que fará a nova tentativa (tempo maximo 20 * 10 = ~3 minutos)
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          failureThreshold: 2 
+          timeoutSeconds: 3
+          periodSeconds: 10     #(tempo maximo 2 * 10 = 20 segundos) 20 segundos é o tempo que o kubernetes levará para encerrar o tráfego do pod (continua em exec)
+        livenessProbe:
+          httpGet:
+            path: /alive
+            port: 80
+          failureThreshold: 8
+          timeoutSeconds: 3
+          periodSeconds: 5      #(tempo maximo 8 * 5 = 40 segundos) 40 segundos é o tempo que o kubernetes levará para reniciar o pod em caso de falhas consecutivas
